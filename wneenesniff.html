@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swiss Cheese AI - Space Vortex Explosion</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        canvas {
+            display: block;
+        }
+        #subtitles {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 2em;
+            color: #ff0;
+            text-shadow: 2px 2px 15px rgba(255, 0, 255, 0.7);
+            pointer-events: none;
+        }
+        #startButton {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            font-size: 1.5em;
+            background-color: #ff0;
+            color: #111;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #startButton:hover {
+            background-color: #e600ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="subtitles"></div>
+    <button id="startButton">Start Swiss Cheese AI</button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        let camera, scene, renderer, sphere, sphereMaterial, clock, synth, subtitlesDiv;
+        let particles, particleMaterial, particleGeometry, particleSystem;
+        let recentSentences = [];
+        let sentenceQueue = [
+        "Hoppin' Jimbo Shawnbrawn Jones Dickflipper Bittleton Gertrude Kazinga Jonathan The Assman VII and Boy if you don't get yo Wally Cornelius Scratchensniff Frumpus Pornger The Great Princess Quandalius Sigma Aither Pringlemuncher Coochiesmith The Ancient Cum Shitter, Mr. Quandalius MLG pro gamer Binglewanger The Peach Creamer, King Luigi Dicknugget Scratchensniff Butterfinger eatin' Doodleberry The Hedgehog, D'marcus Tripledick Poop Nugget Bobby Heisenburg V, Dick munchin' Quadius Squintillion Skank Snooper Retardo VI", 
+			"Contact my nose hole at SomeOrdinarySanchez@gmail.com", 
+			"Wally Jonathan Gooch. he has commited 87 hate crimes and is a stoner, he also is in a rivalry with Quandale and has 57 kids. He likes to do cool things like Attempting To Smoke Crack In ICU, Almost Burning Down Hospital, Vaulting fetuses, and Embezzlement.", 
+			"Shut up you Fat Goon not even Quandale would try and bang yo ass", 
+			"My criminal record is Aggravated Assault, Stealing a cherry cheesecake from the local Golden Corral, Telling emos to kill themselves, Scamming old ladies out of their money", 
+			"You think that's bad? Remember that time Brian went to your mom's house with Quandale"
+        ];
+        let warpEffect = new THREE.Vector3(0, 0, 0);
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 5;
+
+            // Sphere setup with dynamic displacement
+            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            sphereMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 1.0 },
+                    displacement: { value: 0.3 }
+                },
+                vertexShader: `
+                    varying vec3 vNormal;
+                    uniform float time;
+                    uniform float displacement;
+                    void main() {
+                        vNormal = normal;
+                        vec3 newPosition = position + normal * sin(time + position.x * 10.0) * displacement;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vNormal;
+                    void main() {
+                        gl_FragColor = vec4(abs(vNormal), 1.0);
+                    }
+                `,
+                wireframe: false
+            });
+
+            sphere = new THREE.Mesh(geometry, sphereMaterial);
+            scene.add(sphere);
+
+            // Dynamic lighting
+            const pointLight = new THREE.PointLight(0xFFFFFF, 2, 20);
+            pointLight.position.set(0, 0, 5);
+            scene.add(pointLight);
+
+            const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.5);
+            scene.add(ambientLight);
+
+            // Particle system in background
+            particleGeometry = new THREE.BufferGeometry();
+            let particleCount = 5000;
+            let positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = Math.random() * 3 - 1.5;
+                positions[i * 3 + 1] = Math.random() * 3 - 1.5;
+                positions[i * 3 + 2] = Math.random() * 3 - 1.5;
+            }
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleMaterial = new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.03 });
+            particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particleSystem);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            clock = new THREE.Clock();
+            synth = window.speechSynthesis;
+            subtitlesDiv = document.getElementById('subtitles');
+        }
+
+        // Liquid-style distortion effect
+        function applyLiquidEffect() {
+            sphereMaterial.uniforms.time.value += 0.1; // Dynamic distortions
+            sphere.scale.set(1.5, 1.5, 1.5); // Deformation from the shockwave
+            setTimeout(() => sphere.scale.set(1, 1, 1), 1500); // Fluid reset
+        }
+
+        // Function to speak a sentence
+        function speakSentence(sentence) {
+            const utterance = new SpeechSynthesisUtterance(sentence);
+            utterance.onstart = function () {
+                subtitlesDiv.textContent = sentence;
+                applyLiquidEffect(); // Apply distortion on start
+            };
+
+            utterance.onend = function () {
+                subtitlesDiv.textContent = "";
+                setTimeout(speakNextSentence, 1000); // Next sentence after a second
+            };
+
+            synth.speak(utterance);
+        }
+
+        // Get the next sentence
+        function speakNextSentence() {
+            const availableSentences = sentenceQueue.filter(sentence => !recentSentences.includes(sentence));
+            if (availableSentences.length > 0) {
+                const nextSentence = availableSentences[Math.floor(Math.random() * availableSentences.length)];
+                speakSentence(nextSentence);
+                recentSentences.push(nextSentence);
+                if (recentSentences.length > 4) {
+                    recentSentences.shift(); // Avoid repeating last 4
+                }
+            }
+        }
+
+        // Particle animation: create explosive waves
+        function animateParticles() {
+            let positions = particleGeometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i] += Math.random() * 0.1 - 0.05;
+                positions[i + 1] += Math.random() * 0.1 - 0.05;
+                positions[i + 2] += Math.random() * 0.1 - 0.05;
+            }
+            particleGeometry.attributes.position.needsUpdate = true;
+        }
+
+        // Animate explosion wave effects
+        function animateExplosion() {
+            const scale = Math.sin(clock.getElapsedTime()) * 0.5 + 1;
+            sphere.scale.set(scale, scale, scale);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            sphere.rotation.x += 0.5 * delta;
+            sphere.rotation.y += 0.5 * delta;
+            animateParticles(); // Particle animation
+            animateExplosion(); // Explosion effect
+            renderer.render(scene, camera);
+        }
+
+        // Event listeners
+        document.getElementById('startButton').addEventListener('click', function () {
+            document.getElementById('startButton').style.display = 'none';
+            init();
+            speakNextSentence(); // Start speaking
+            animate();
+        });
+
+        window.addEventListener('resize', function () {
+            if (!camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        document.addEventListener('click', () => {
+            applyLiquidEffect(); // Apply distortion on click
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Get ready for the mind explosion! 💥");
+        });
+    </script>
+</body>
+</html>
